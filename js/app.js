@@ -19,6 +19,7 @@
   const Storage = MSAvk.Storage;
   const StructureList = MSAvk.StructureList;
   const Triangulation = MSAvk.Triangulation;
+  const OCRParser = MSAvk.OCRParser;
 
   if (
     !Config ||
@@ -33,7 +34,7 @@
   }
 
   // ==========================================
-  // 2. MENGAMBIL ELEMENT HTML
+  // 2. ELEMENT HTML
   // ==========================================
 
   const elements = {
@@ -77,7 +78,22 @@
     eye2Angle: document.getElementById("eye2Angle"),
 
     calculateTriangulation:
-      document.getElementById("calculateTriangulation")
+      document.getElementById("calculateTriangulation"),
+
+    // OCR SCANNER
+    scanHUD: document.getElementById("scanHUD"),
+    ocrStatus: document.getElementById("ocrStatus"),
+    ocrConfirmation:
+      document.getElementById("ocrConfirmation"),
+
+    ocrSeed: document.getElementById("ocrSeed"),
+    ocrX: document.getElementById("ocrX"),
+    ocrY: document.getElementById("ocrY"),
+    ocrZ: document.getElementById("ocrZ"),
+    ocrAngle: document.getElementById("ocrAngle"),
+
+    confirmOCR: document.getElementById("confirmOCR"),
+    cancelOCR: document.getElementById("cancelOCR")
   };
 
   // ==========================================
@@ -242,11 +258,7 @@
       return;
     }
 
-    Event.emit("coordinates:updated", {
-      x,
-      y,
-      z
-    });
+    Event.emit("coordinates:updated", { x, y, z });
 
     showMessage(
       elements.finderResults,
@@ -290,7 +302,7 @@
 
     showMessage(
       elements.finderResults,
-      "Struktur sudah dipilih, tetapi engine pencarian seed belum terintegrasi. Belum ada koordinat struktur yang dapat ditampilkan.",
+      "Engine pencarian seed belum terintegrasi. Belum ada koordinat struktur yang dapat ditampilkan.",
       "warning"
     );
   }
@@ -371,18 +383,183 @@
     const warning = document.createElement("p");
     warning.textContent = result.message;
 
-    container.append(
-      heading,
-      coordinates,
-      details,
-      warning
-    );
+    container.append(heading, coordinates, details, warning);
 
     Event.emit("triangulation:completed", result);
   }
 
   // ==========================================
-  // 9. FEATURE FINDER
+  // 9. HUD SCANNER
+  // ==========================================
+
+  let pendingOCRData = null;
+
+  function setOCRStatus(message, type = "info") {
+    if (!elements.ocrStatus) return;
+
+    elements.ocrStatus.textContent = message;
+    elements.ocrStatus.className = `scanner-status ${type}`;
+  }
+
+  function displayOCRResult(parsed) {
+    if (!parsed || !parsed.success || !parsed.data) {
+      setOCRStatus(
+        parsed?.message || "Data OCR tidak valid.",
+        "error"
+      );
+      return;
+    }
+
+    pendingOCRData = parsed.data;
+
+    elements.ocrSeed.value = parsed.data.seed;
+    elements.ocrX.value = parsed.data.coordinates.x;
+    elements.ocrY.value = parsed.data.coordinates.y;
+    elements.ocrZ.value = parsed.data.coordinates.z;
+    elements.ocrAngle.value = parsed.data.angle;
+
+    elements.ocrConfirmation.hidden = false;
+
+    setOCRStatus(
+      "Data berhasil dibaca. Periksa sebelum konfirmasi.",
+      "success"
+    );
+
+    Event.emit("ocr:parsed", parsed.data);
+  }
+
+  async function scanHUD() {
+    if (!OCRParser || typeof OCRParser.parse !== "function") {
+      setOCRStatus(
+        "OCR Parser belum dimuat. Periksa script ocr-parser.js.",
+        "error"
+      );
+      return;
+    }
+
+    pendingOCRData = null;
+    elements.ocrConfirmation.hidden = true;
+
+    setOCRStatus("Memeriksa koneksi Android...");
+
+    // Android Bridge belum tersedia:
+    // Jangan menganggap screenshot berhasil diambil.
+    if (
+      !window.MSAvkAndroid ||
+      typeof window.MSAvkAndroid.scanHUD !== "function"
+    ) {
+      setOCRStatus(
+        "Android Screen Capture belum terhubung. Tombol Scan belum dapat mengambil layar Minecraft.",
+        "warning"
+      );
+      return;
+    }
+
+    try {
+      setOCRStatus("Menunggu hasil pemindaian Android...");
+
+      const response = await window.MSAvkAndroid.scanHUD();
+
+      if (!response || typeof response.text !== "string") {
+        throw new Error("Android tidak mengembalikan teks OCR.");
+      }
+
+      const parsed = OCRParser.parse(response.text);
+
+      displayOCRResult(parsed);
+
+    } catch (error) {
+      console.error("HUD Scanner Error:", error);
+
+      setOCRStatus(
+        error.message || "Pemindaian gagal.",
+        "error"
+      );
+    }
+  }
+
+  function confirmOCR() {
+    if (!pendingOCRData) {
+      setOCRStatus(
+        "Tidak ada hasil OCR untuk dikonfirmasi.",
+        "error"
+      );
+      return;
+    }
+
+    const seed = elements.ocrSeed.value.trim();
+    const x = Number(elements.ocrX.value);
+    const y = Number(elements.ocrY.value);
+    const z = Number(elements.ocrZ.value);
+    const angle = Number(elements.ocrAngle.value);
+
+    if (
+      !seed ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      !Number.isFinite(z) ||
+      !Number.isFinite(angle) ||
+      angle < 0 ||
+      angle >= 360
+    ) {
+      setOCRStatus(
+        "Periksa kembali Seed, koordinat, dan Angle.",
+        "error"
+      );
+      return;
+    }
+
+    const worldSuccess = State.set({ seed });
+
+    const coordinateSuccess = State.setCoordinates(x, y, z);
+
+    if (!worldSuccess || !coordinateSuccess) {
+      setOCRStatus(
+        "Gagal menyimpan data hasil OCR.",
+        "error"
+      );
+      return;
+    }
+
+    // Sinkronisasi tampilan dashboard
+    elements.worldSeed.value = seed;
+    elements.playerX.value = x;
+    elements.playerY.value = y;
+    elements.playerZ.value = z;
+
+    // Simpan angle sebagai data event.
+    // Belum ditambahkan ke struktur State.
+    Event.emit("angle:updated", { angle });
+
+    Event.emit("ocr:confirmed", {
+      seed,
+      coordinates: { x, y, z },
+      angle
+    });
+
+    elements.ocrConfirmation.hidden = true;
+    pendingOCRData = null;
+
+    setOCRStatus(
+      "Data HUD berhasil dikonfirmasi dan disimpan.",
+      "success"
+    );
+  }
+
+  function cancelOCR() {
+    pendingOCRData = null;
+
+    if (elements.ocrConfirmation) {
+      elements.ocrConfirmation.hidden = true;
+    }
+
+    setOCRStatus("Hasil pemindaian dibatalkan.", "warning");
+
+    Event.emit("ocr:cancelled");
+  }
+
+  // ==========================================
+  // 10. FEATURE FINDER
   // ==========================================
 
   function initializeFeatureFinder() {
@@ -413,15 +590,12 @@
   }
 
   // ==========================================
-  // 10. EVENT LISTENERS
+  // 11. EVENT LISTENERS
   // ==========================================
 
   function initializeEvents() {
     if (elements.saveWorld) {
-      elements.saveWorld.addEventListener(
-        "click",
-        saveWorld
-      );
+      elements.saveWorld.addEventListener("click", saveWorld);
     }
 
     if (elements.saveCoordinates) {
@@ -445,7 +619,26 @@
       );
     }
 
-    // Menyamakan pilihan dimensi dunia dan Structure Finder
+    // HUD Scanner
+    if (elements.scanHUD) {
+      elements.scanHUD.addEventListener("click", scanHUD);
+    }
+
+    if (elements.confirmOCR) {
+      elements.confirmOCR.addEventListener(
+        "click",
+        confirmOCR
+      );
+    }
+
+    if (elements.cancelOCR) {
+      elements.cancelOCR.addEventListener(
+        "click",
+        cancelOCR
+      );
+    }
+
+    // Sinkronisasi dimensi
     if (elements.dimension && elements.structureDimension) {
       elements.dimension.addEventListener("change", function () {
         elements.structureDimension.value =
@@ -465,7 +658,7 @@
   }
 
   // ==========================================
-  // 11. MENDENGARKAN PERUBAHAN STATE
+  // 12. STATE LISTENER
   // ==========================================
 
   State.subscribe(function (data) {
@@ -473,7 +666,7 @@
   });
 
   // ==========================================
-  // 12. INISIALISASI APLIKASI
+  // 13. INISIALISASI APLIKASI
   // ==========================================
 
   function initialize() {
