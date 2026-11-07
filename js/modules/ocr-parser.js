@@ -1,3 +1,4 @@
+
 (function () {
   "use strict";
 
@@ -9,29 +10,47 @@
     "angle"
   ];
 
+  // ==========================================
+  // 1. NORMALISASI TEKS OCR
+  // ==========================================
+
   function normalizeText(text) {
     return String(text || "")
       .replace(/[−–—]/g, "-")
-      .replace(/,/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
 
+  // ==========================================
+  // 2. MENGAMBIL NILAI BERDASARKAN LABEL
+  // ==========================================
+
   function extractValue(text, label) {
     const pattern = new RegExp(
-      "(?:^|\\s)" + label +
+      "(?:^|[/,\\s])" +
+      label +
       "\\s*[:=]\\s*(-?\\d+(?:\\.\\d+)?)",
       "i"
     );
 
     const match = text.match(pattern);
+
     return match ? match[1] : null;
   }
+
+  // ==========================================
+  // 3. PARSING HUD
+  // ==========================================
 
   function parse(text) {
     const normalized = normalizeText(text);
 
-    const seed = extractValue(normalized, "SEED");
+    const seedMatch = normalized.match(
+      /(?:^|[/\s])SEED\s*[:=]?\s*(-?\d+)/i
+    );
+
+    const seed = seedMatch ? seedMatch[1] : null;
+
     const x = extractValue(normalized, "X");
     const y = extractValue(normalized, "Y");
     const z = extractValue(normalized, "Z");
@@ -72,7 +91,7 @@
         success: false,
         data: null,
         missing: [],
-        message: "Ada nilai koordinat atau angle yang tidak valid."
+        message: "Koordinat atau angle tidak valid."
       };
     }
 
@@ -87,6 +106,10 @@
       message: "Data HUD berhasil dibaca."
     };
   }
+
+  // ==========================================
+  // 4. EXPORT MODULE
+  // ==========================================
 
   window.MSAvk = window.MSAvk || {};
 
