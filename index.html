@@ -1,1 +1,348 @@
-p
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#101810">
+
+    <title>MSAvk - Minecraft Speedrun Assistant</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/overlay.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="brand">
+        <div class="brand-icon">M</div>
+        <div>
+            <h1>MSAvk</h1>
+            <p>Minecraft Speedrun Assistant</p>
+        </div>
+    </div>
+
+    <div class="version">
+        <span class="status-dot"></span>
+        Bedrock 1.26.60
+    </div>
+</header>
+
+<main class="container">
+
+    <!-- DASHBOARD -->
+    <section class="welcome">
+        <div>
+            <span class="eyebrow">SPEEDRUN TOOLKIT</span>
+            <h2>Prepare Your World.</h2>
+            <p>
+                Temukan struktur, hitung koordinat,
+                dan rencanakan perjalanan speedrun-mu.
+            </p>
+        </div>
+    </section>
+
+    <!-- WORLD CONFIGURATION -->
+    <section class="panel" id="world-section">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">WORLD SETTINGS</span>
+                <h2>World Configuration</h2>
+            </div>
+            <span class="panel-icon">🌍</span>
+        </div>
+
+        <div class="form-group">
+            <label for="worldSeed">World Seed</label>
+            <input
+                type="text"
+                id="worldSeed"
+                placeholder="Masukkan seed Minecraft..."
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="gameVersion">Minecraft Version</label>
+            <select id="gameVersion">
+                <option value="1.26.60">
+                    Bedrock 1.26.60
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="dimension">Dimension</label>
+            <select id="dimension">
+                <option value="overworld">Overworld</option>
+                <option value="nether">Nether</option>
+                <option value="end">The End</option>
+            </select>
+        </div>
+
+        <button id="saveWorld" class="primary-button">
+            Save World Settings
+        </button>
+    </section>
+
+    <!-- PLAYER COORDINATES -->
+    <section class="panel">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">PLAYER TRACKER</span>
+                <h2>Player Coordinates</h2>
+            </div>
+            <span class="panel-icon">📍</span>
+        </div>
+
+        <div class="coordinate-grid">
+            <div class="form-group">
+                <label for="playerX">X Coordinate</label>
+                <input type="number" id="playerX" placeholder="0">
+            </div>
+
+            <div class="form-group">
+                <label for="playerY">Y Coordinate</label>
+                <input type="number" id="playerY" placeholder="64">
+            </div>
+
+            <div class="form-group">
+                <label for="playerZ">Z Coordinate</label>
+                <input type="number" id="playerZ" placeholder="0">
+            </div>
+        </div>
+
+        <button id="saveCoordinates" class="primary-button">
+            Update Coordinates
+        </button>
+
+        <p class="helper-text">
+            Koordinat dimasukkan secara manual untuk prototype ini.
+        </p>
+    </section>
+
+    <!-- STRUCTURE FINDER -->
+    <section class="panel" id="finder-section">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">WORLD EXPLORATION</span>
+                <h2>Structure Finder</h2>
+                <p>Pilih struktur yang ingin kamu cari.</p>
+            </div>
+            <span class="panel-icon">🧭</span>
+        </div>
+
+        <div class="filter-bar">
+            <input
+                type="search"
+                id="structureSearch"
+                placeholder="Cari struktur..."
+            >
+
+            <select id="structureDimension">
+                <option value="all">Semua Dimension</option>
+                <option value="overworld">Overworld</option>
+                <option value="nether">Nether</option>
+                <option value="end">The End</option>
+            </select>
+        </div>
+
+        <div class="category-filters" id="categoryFilters">
+            <button class="filter-button active" data-category="all">
+                All
+            </button>
+            <button class="filter-button" data-category="village">
+                Village
+            </button>
+            <button class="filter-button" data-category="temple">
+                Temple
+            </button>
+            <button class="filter-button" data-category="loot">
+                Loot
+            </button>
+            <button class="filter-button" data-category="special">
+                Special
+            </button>
+        </div>
+
+        <div class="structure-summary">
+            <span id="structureCount">0 structures</span>
+            <span id="selectedCount">0 selected</span>
+        </div>
+
+        <div id="structureList" class="structure-grid">
+            <p class="helper-text">
+                Katalog struktur akan dimuat di sini.
+            </p>
+        </div>
+
+        <div class="selection-actions">
+            <button id="selectAll" class="secondary-button">
+                Select All
+            </button>
+
+            <button id="clearSelection" class="secondary-button">
+                Clear Selection
+            </button>
+        </div>
+
+        <button id="findStructures" class="primary-button">
+            Find Selected Structures
+        </button>
+
+        <div id="finderResults" class="results-area">
+            <p class="helper-text">
+                Hasil pencarian akan muncul di sini.
+            </p>
+        </div>
+    </section>
+
+    <!-- FEATURE FINDER -->
+    <section class="panel">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">TERRAIN EXPLORATION</span>
+                <h2>Feature Finder</h2>
+                <p>Fitur dunia yang bukan termasuk struktur biasa.</p>
+            </div>
+            <span class="panel-icon">🌋</span>
+        </div>
+
+        <div class="feature-grid">
+            <button class="feature-card" data-feature="lava-pool">
+                <span>🌋</span>
+                <strong>Lava Pool</strong>
+                <small>Terrain detection</small>
+            </button>
+
+            <button class="feature-card" data-feature="surface-lava">
+                <span>🔥</span>
+                <strong>Surface Lava</strong>
+                <small>Terrain detection</small>
+            </button>
+
+            <button class="feature-card" data-feature="biome">
+                <span>🌲</span>
+                <strong>Biome Finder</strong>
+                <small>Biome engine</small>
+            </button>
+
+            <button class="feature-card" data-feature="cave">
+                <span>⛏️</span>
+                <strong>Cave Entrance</strong>
+                <small>Terrain detection</small>
+            </button>
+        </div>
+
+        <p class="helper-text">
+            Feature Finder belum terhubung ke engine pendeteksi.
+        </p>
+    </section>
+
+    <!-- STRONGHOLD TRIANGULATION -->
+    <section class="panel" id="triangulation-section">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">STRONGHOLD LOCATOR</span>
+                <h2>Manual Triangulation</h2>
+                <p>Perkirakan posisi Stronghold menggunakan arah Eye of Ender.</p>
+            </div>
+            <span class="panel-icon">👁️</span>
+        </div>
+
+        <div class="triangulation-point">
+            <h3>Observation Point 1</h3>
+
+            <div class="coordinate-grid">
+                <div class="form-group">
+                    <label for="eye1X">X</label>
+                    <input type="number" id="eye1X">
+                </div>
+
+                <div class="form-group">
+                    <label for="eye1Z">Z</label>
+                    <input type="number" id="eye1Z">
+                </div>
+
+                <div class="form-group">
+                    <label for="eye1Angle">Bearing (°)</label>
+                    <input type="number" id="eye1Angle"
+                           min="0" max="359" placeholder="0–359">
+                </div>
+            </div>
+        </div>
+
+        <div class="triangulation-point">
+            <h3>Observation Point 2</h3>
+
+            <div class="coordinate-grid">
+                <div class="form-group">
+                    <label for="eye2X">X</label>
+                    <input type="number" id="eye2X">
+                </div>
+
+                <div class="form-group">
+                    <label for="eye2Z">Z</label>
+                    <input type="number" id="eye2Z">
+                </div>
+
+                <div class="form-group">
+                    <label for="eye2Angle">Bearing (°)</label>
+                    <input type="number" id="eye2Angle"
+                           min="0" max="359" placeholder="0–359">
+                </div>
+            </div>
+        </div>
+
+        <p class="helper-text">
+            Bearing: 0° Utara, 90° Timur, 180° Selatan, 270° Barat.
+        </p>
+
+        <button id="calculateTriangulation" class="primary-button">
+            Calculate Stronghold Position
+        </button>
+
+        <div id="triangulationResults" class="results-area">
+            <p class="helper-text">
+                Hasil triangulasi akan muncul di sini.
+            </p>
+        </div>
+    </section>
+
+    <!-- NAVIGATION -->
+    <section class="panel">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow">QUICK ACCESS</span>
+                <h2>Speedrun Tools</h2>
+            </div>
+        </div>
+
+        <div class="quick-tools">
+            <a href="#world-section">🌍 World Settings</a>
+            <a href="#finder-section">🧭 Structure Finder</a>
+            <a href="#triangulation-section">👁️ Stronghold Locator</a>
+        </div>
+    </section>
+
+</main>
+
+<footer class="footer">
+    <strong>MSAvk</strong>
+    <p>Minecraft Speedrun Assistant</p>
+    <p>Bedrock Edition • Version 1.26.60</p>
+    <small>Prototype v0.2 — Engine integration pending</small>
+</footer>
+
+<!-- JavaScript -->
+<script src="js/config.js" defer></script>
+<script src="js/core/storage.js" defer></script>
+<script src="js/core/state.js" defer></script>
+<script src="js/engine/structure-registry.js" defer></script>
+<script src="js/ui/structure-list.js" defer></script>
+<script src="js/modules/triangulation.js" defer></script>
+<script src="js/app.js" defer></script>
+
+</body>
+</html>
