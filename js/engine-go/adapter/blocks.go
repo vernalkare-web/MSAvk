@@ -1,23 +1,39 @@
+
 package adapter
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
+	"io/fs"
 
 	helixdata "github.com/helix-bedrock/helix-data"
 	"github.com/helix-bedrock/worldgen/1.26.60/blocks"
 )
 
-// LoadBlocks loads Minecraft Bedrock 1.26.60 block states
-// from Helix Data and converts them into a Worldgen Registry.
+//go:embed data/block_defaults.json
+var defaultsJSON []byte
+
+type miningData struct {
+	Blocks map[string]struct {
+		Tags      []string `json:"tags"`
+		NeedsTool bool     `json:"needsTool"`
+	} `json:"blocks"`
+}
+
+// LoadBlocks builds the Bedrock 1.26.60 block registry.
 func LoadBlocks() (*blocks.Registry, error) {
-	// Load all block states from Helix Data.
+	// 1. Load block states.
 	versionedStates, err := helixdata.BlockStates()
 	if err != nil {
 		return nil, fmt.Errorf("load block states: %w", err)
 	}
 
-	// Convert Helix states into Worldgen states.
 	states := make([]blocks.State, len(versionedStates))
+	stateIndex := make(map[uint32]uint32, len(versionedStates))
+
+	// Keep property types for converting JSON defaults.
+	propertyTypes := make(map[string]map[string]any)
 
 	for i, state := range versionedStates {
 		props := make(map[string]any, len(state.Properties))
@@ -30,12 +46,93 @@ func LoadBlocks() (*blocks.Registry, error) {
 			Name:  state.Name,
 			Props: props,
 		}
+
+		stateIndex[blocks.Hash(states[i])] = uint32(i)
+
+		if propertyTypes[state.Name] == nil {
+			propertyTypes[state.Name] = make(map[string]any)
+		}
+
+		for key, value := range props {
+			propertyTypes[state.Name][key] = value
+		}
 	}
 
-	// Build the initial registry.
-	// Defaults and tags will be connected in the next step.
+	// 2. Read block defaults.
+	var rawDefaults map[string]map[string]any
+
+	if err := json.Unmarshal(defaultsJSON, &rawDefaults); err != nil {
+		return nil, fmt.Errorf("decode block defaults: %w", err)
+	}
+
+	defaults := make(map[string]uint32, len(rawDefaults))
+
+	for name, rawProps := range rawDefaults {
+		props := make(map[string]any, len(rawProps))
+
+		for key, value := range rawProps {
+			example, ok := propertyTypes[name][key]
+			if !ok {
+				return nil, fmt.Errorf(
+					"unknown default property %s for %s",
+					key, name,
+				)
+			}
+
+			converted, err := convertProperty(value, example)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"convert default %s.%s: %w",
+					name, key, err,
+				)
+			}
+
+			props[key] = converted
+		}
+
+		hash := blocks.Hash(blocks.State{
+			Name:  name,
+			Props: props,
+		})
+
+		index, ok := stateIndex[hash]
+		if !ok {
+			return nil, fmt.Errorf(
+				"default state not found in palette: %s",
+				name,
+			)
+		}
+
+		defaults[name] = index
+	}
+
+	// 3. Read mining.json from Helix Data.
+	files := helixdata.Files()
+
+	miningJSON, err := fs.ReadFile(files, "bds/mining.json")
+	if err != nil {
+		return nil, fmt.Errorf("read bds/mining.json: %w", err)
+	}
+
+	var mining miningData
+
+	if err := json.Unmarshal(miningJSON, &mining); err != nil {
+		return nil, fmt.Errorf("decode mining.json: %w", err)
+	}
+
+	tags := make(map[string][]string)
+
+	for name, block := range mining.Blocks {
+		if len(block.Tags) > 0 {
+			tags[name] = block.Tags
+		}
+	}
+
+	// 4. Build Worldgen Registry.
 	registry, err := blocks.New(blocks.Source{
-		States: states,
+		States:   states,
+		Defaults: defaults,
+		Tags:     tags,
 	})
 
 	if err != nil {
@@ -43,4 +140,33 @@ func LoadBlocks() (*blocks.Registry, error) {
 	}
 
 	return registry, nil
+}
+
+// Convert JSON numbers to the property type used by Helix states.
+func convertProperty(value any, example any) (any, error) {
+	switch example.(type) {
+	case uint8:
+		number, ok := value.(float64)
+		if !ok || number < 0 || number > 255 || number != float64(uint8(number)) {
+			return nil, fmt.Errorf("expected uint8, got %v", value)
+		}
+		return uint8(number), nil
+
+	case int32:
+		number, ok := value.(float64)
+		if !ok || number < -2147483648 || number > 2147483647 || number != float64(int32(number)) {
+			return nil, fmt.Errorf("expected int32, got %v", value)
+		}
+		return int32(number), nil
+
+	case string:
+		text, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string, got %v", value)
+		}
+		return text, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported property type %T", example)
+	}
 }
