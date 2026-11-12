@@ -1,4 +1,3 @@
-
 package adapter
 
 import (
@@ -21,9 +20,10 @@ type miningData struct {
 	} `json:"blocks"`
 }
 
-// LoadBlocks builds the Bedrock 1.26.60 block registry.
+// LoadBlocks loads Bedrock 1.26.60 block data
+// and creates a Worldgen block registry.
 func LoadBlocks() (*blocks.Registry, error) {
-	// 1. Load block states.
+	// 1. Load all block states from Helix Data.
 	versionedStates, err := helixdata.BlockStates()
 	if err != nil {
 		return nil, fmt.Errorf("load block states: %w", err)
@@ -31,10 +31,9 @@ func LoadBlocks() (*blocks.Registry, error) {
 
 	states := make([]blocks.State, len(versionedStates))
 	stateIndex := make(map[uint32]uint32, len(versionedStates))
-
-	// Keep property types for converting JSON defaults.
 	propertyTypes := make(map[string]map[string]any)
 
+	// 2. Convert Helix block states.
 	for i, state := range versionedStates {
 		props := make(map[string]any, len(state.Properties))
 
@@ -58,7 +57,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 		}
 	}
 
-	// 2. Read block defaults.
+	// 3. Decode block_defaults.json.
 	var rawDefaults map[string]map[string]any
 
 	if err := json.Unmarshal(defaultsJSON, &rawDefaults); err != nil {
@@ -74,7 +73,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 			example, ok := propertyTypes[name][key]
 			if !ok {
 				return nil, fmt.Errorf(
-					"unknown default property %s for %s",
+					"unknown property %s for block %s",
 					key, name,
 				)
 			}
@@ -82,7 +81,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 			converted, err := convertProperty(value, example)
 			if err != nil {
 				return nil, fmt.Errorf(
-					"convert default %s.%s: %w",
+					"convert %s.%s: %w",
 					name, key, err,
 				)
 			}
@@ -98,7 +97,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 		index, ok := stateIndex[hash]
 		if !ok {
 			return nil, fmt.Errorf(
-				"default state not found in palette: %s",
+				"default state not found: %s",
 				name,
 			)
 		}
@@ -106,12 +105,12 @@ func LoadBlocks() (*blocks.Registry, error) {
 		defaults[name] = index
 	}
 
-	// 3. Read mining.json from Helix Data.
+	// 4. Read mining.json from Helix Data.
 	files := helixdata.Files()
 
 	miningJSON, err := fs.ReadFile(files, "bds/mining.json")
 	if err != nil {
-		return nil, fmt.Errorf("read bds/mining.json: %w", err)
+		return nil, fmt.Errorf("read mining.json: %w", err)
 	}
 
 	var mining miningData
@@ -128,7 +127,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 		}
 	}
 
-	// 4. Build Worldgen Registry.
+	// 5. Build Worldgen Registry.
 	registry, err := blocks.New(blocks.Source{
 		States:   states,
 		Defaults: defaults,
@@ -142,31 +141,34 @@ func LoadBlocks() (*blocks.Registry, error) {
 	return registry, nil
 }
 
-// Convert JSON numbers to the property type used by Helix states.
+// Convert JSON values to the original block property types.
 func convertProperty(value any, example any) (any, error) {
 	switch example.(type) {
 	case uint8:
 		number, ok := value.(float64)
-		if !ok || number < 0 || number > 255 || number != float64(uint8(number)) {
-			return nil, fmt.Errorf("expected uint8, got %v", value)
+		if !ok || number < 0 || number > 255 ||
+			number != float64(uint8(number)) {
+			return nil, fmt.Errorf("invalid uint8 value: %v", value)
 		}
 		return uint8(number), nil
 
 	case int32:
 		number, ok := value.(float64)
-		if !ok || number < -2147483648 || number > 2147483647 || number != float64(int32(number)) {
-			return nil, fmt.Errorf("expected int32, got %v", value)
+		if !ok || number < -2147483648 ||
+			number > 2147483647 ||
+			number != float64(int32(number)) {
+			return nil, fmt.Errorf("invalid int32 value: %v", value)
 		}
 		return int32(number), nil
 
 	case string:
 		text, ok := value.(string)
 		if !ok {
-			return nil, fmt.Errorf("expected string, got %v", value)
+			return nil, fmt.Errorf("invalid string value: %v", value)
 		}
 		return text, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported property type %T", example)
+		return nil, fmt.Errorf("unsupported property type: %T", example)
 	}
 }
