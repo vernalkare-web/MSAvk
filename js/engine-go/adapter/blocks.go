@@ -7,7 +7,7 @@ import (
 	"io/fs"
 
 	helixdata "github.com/helix-bedrock/helix-data/data"
-	helixfiles "github.com/helix-bedrock/helix-data/data/1.26.60"
+	helixfiles "github.com/helix-bedrock/helix-data/data/files"
 	"github.com/helix-bedrock/worldgen/1.26.60/blocks"
 )
 
