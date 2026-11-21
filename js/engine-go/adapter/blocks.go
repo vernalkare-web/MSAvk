@@ -1,3 +1,4 @@
+
 package adapter
 
 import (
@@ -6,7 +7,9 @@ import (
 	"fmt"
 	"io/fs"
 
-	helixdata "github.com/helix-bedrock/helix-data"
+	helixdata "github.com/helix-bedrock/helix-data/data"
+	helixfiles "github.com/helix-bedrock/helix-data/data/files"
+
 	"github.com/helix-bedrock/worldgen/1.26.60/blocks"
 )
 
@@ -106,7 +109,7 @@ func LoadBlocks() (*blocks.Registry, error) {
 	}
 
 	// 4. Read mining.json from Helix Data.
-	files := helixdata.Files()
+	files := helixfiles.Files()
 
 	miningJSON, err := fs.ReadFile(files, "bds/mining.json")
 	if err != nil {
