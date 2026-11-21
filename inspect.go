@@ -4,26 +4,42 @@ import (
 	"fmt"
 	"io/fs"
 
-	helixfiles "github.com/helix-bedrock/helix-data/data/1.26.60"
+	helixfiles "github.com/helix-bedrock/helix-data/data/files"
 )
 
 func main() {
 	files := helixfiles.Files()
 
-	err := fs.WalkDir(files, ".", func(
-		path string,
-		entry fs.DirEntry,
-		err error,
-	) error {
+	targets := []string{
+		"bds/mining.json",
+		"bds/biome_ids.json",
+	}
+
+	for _, name := range targets {
+		data, err := fs.ReadFile(files, name)
+		if err != nil {
+			fmt.Printf("[ERROR] %s: %v\n", name, err)
+			continue
+		}
+
+		fmt.Printf("[OK] %s ditemukan (%d bytes)\n", name, len(data))
+	}
+
+	fmt.Println("\nDaftar isi folder bds:")
+
+	err := fs.WalkDir(files, "bds", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(path)
+		if !entry.IsDir() {
+			fmt.Println(path)
+		}
+
 		return nil
 	})
 
 	if err != nil {
-		panic(err)
+		fmt.Printf("[ERROR] %v\n", err)
 	}
 }
