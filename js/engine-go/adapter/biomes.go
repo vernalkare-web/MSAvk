@@ -1,7 +1,9 @@
+
 package adapter
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 
@@ -20,8 +22,21 @@ func LoadBiomes() (map[string]uint32, *biome.Tree, error) {
 		return nil, nil, fmt.Errorf("read biome_ids.json: %w", err)
 	}
 
-	// 3. Decode biome IDs.
-	ids, err := biome.LoadIDs(bytes.NewReader(biomeJSON))
+	// 3. Extract the "biomes" object.
+	var document struct {
+		Biomes json.RawMessage `json:"biomes"`
+	}
+
+	if err := json.Unmarshal(biomeJSON, &document); err != nil {
+		return nil, nil, fmt.Errorf("decode biome JSON: %w", err)
+	}
+
+	if len(document.Biomes) == 0 {
+		return nil, nil, fmt.Errorf("biomes field is missing or empty")
+	}
+
+	// 4. Load only the biome ID mapping.
+	ids, err := biome.LoadIDs(bytes.NewReader(document.Biomes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("load biome IDs: %w", err)
 	}
@@ -30,10 +45,10 @@ func LoadBiomes() (map[string]uint32, *biome.Tree, error) {
 		return nil, nil, fmt.Errorf("no biome IDs found")
 	}
 
-	// 4. Load the vanilla Overworld climate entries.
+	// 5. Load the vanilla Overworld climate entries.
 	entries := biome.Entries(false)
 
-	// 5. Check that every biome used by the climate table has an ID.
+	// 6. Check that every biome used by the climate table has an ID.
 	missing := biome.Missing(entries, ids)
 	if len(missing) > 0 {
 		return nil, nil, fmt.Errorf(
@@ -42,7 +57,7 @@ func LoadBiomes() (map[string]uint32, *biome.Tree, error) {
 		)
 	}
 
-	// 6. Build the climate lookup tree.
+	// 7. Build the climate lookup tree.
 	tree := biome.NewTree(entries, ids)
 
 	return ids, tree, nil
