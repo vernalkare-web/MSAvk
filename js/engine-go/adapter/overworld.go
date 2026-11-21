@@ -51,6 +51,10 @@ func NewGenerator(
 
 // Seed mengembalikan seed dunia.
 func (g *Generator) Seed() int64 {
+	if g == nil || g.world == nil {
+		return 0
+	}
+
 	return g.world.Seed()
 }
 
