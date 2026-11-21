@@ -1,3 +1,4 @@
+
 package adapter
 
 import (
@@ -6,7 +7,7 @@ import (
 	"io/fs"
 	"strings"
 
-	helixfiles "github.com/helix-bedrock/helix-data/data/1.26.60"
+	helixfiles "github.com/helix-bedrock/helix-data/data/files"
 	"github.com/helix-bedrock/worldgen/1.26.60/biome"
 )
 
