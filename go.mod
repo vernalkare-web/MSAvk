@@ -1,5 +1,5 @@
 
-module github.com/USERNAME/MSAvk
+module github.com/vernalkare-web/MSAvk
 
 go 1.26.0
 
