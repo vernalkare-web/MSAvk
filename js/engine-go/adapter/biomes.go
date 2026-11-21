@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	helixfiles "github.com/helix-bedrock/helix-data/data/files"
-	"github.com/helix-bedrock/worldgen/1.26.60/biome"
+	"github.com/helix-bedrock/worldgen/biome"
 )
 
 // LoadBiomes loads Bedrock biome IDs and builds the climate lookup tree.

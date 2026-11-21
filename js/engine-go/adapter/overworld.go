@@ -3,8 +3,8 @@ package adapter
 import (
 	"fmt"
 
-	"github.com/helix-bedrock/worldgen/1.26.60/blocks"
-	"github.com/helix-bedrock/worldgen/1.26.60/overworld"
+	"github.com/helix-bedrock/worldgen/blocks"
+	"github.com/helix-bedrock/worldgen/overworld"
 )
 
 // Generator mengelola generator dunia Minecraft Bedrock.
