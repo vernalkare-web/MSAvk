@@ -1,4 +1,3 @@
-
 module github.com/vernalkare-web/MSAvk
 
 go 1.26.0
